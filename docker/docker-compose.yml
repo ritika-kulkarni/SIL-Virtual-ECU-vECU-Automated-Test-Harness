@@ -1,0 +1,28 @@
+services:
+  sil-ci:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.ci
+    volumes:
+      - ..:/workspace
+    working_dir: /workspace
+    environment:
+      - BUILD_ID=local-compose
+      - ARTIFACTORY_USER=${ARTIFACTORY_USER:-}
+      - ARTIFACTORY_PASSWORD=${ARTIFACTORY_PASSWORD:-}
+    command: ["bash", "scripts/run_local.sh"]
+
+  jenkins:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.jenkins
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    profiles: ["jenkins"]
+
+volumes:
+  jenkins_home:

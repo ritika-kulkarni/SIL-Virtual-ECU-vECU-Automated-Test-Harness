@@ -1,0 +1,11 @@
+name: j1939_tp_retransmit
+description: Force J1939 TP CTS/ACK loss and assert transport-layer retransmission.
+fault:
+  type: j1939_tp_retransmit
+  drop_control_frames: 2
+  max_tp_retries: 3
+  payload_bytes: 40
+expectations:
+  require_retransmit: true
+  require_delivery: true
+  max_retries_observed: 3

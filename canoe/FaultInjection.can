@@ -1,0 +1,54 @@
+/* CAPL sample for CANoe headless/batch SIL runs.
+ * Mirrors the Python FaultInjector scenarios when backend=canoe.
+ * Load this in your CANoe configuration and start Measurement via COM.
+ */
+
+variables
+{
+  int gDropEnabled = 0;
+  int gBusOffPending = 0;
+  int gTpDropRemaining = 0;
+}
+
+on sysvar_update sysvar::SIL::EnableFrameDrop
+{
+  gDropEnabled = @this;
+}
+
+on sysvar_update sysvar::SIL::ForceBusOff
+{
+  gBusOffPending = @this;
+}
+
+on sysvar_update sysvar::SIL::TpControlDrops
+{
+  gTpDropRemaining = @this;
+}
+
+on message *
+{
+  // Frame-drop window: suppress selected IDs while enabled
+  if (gDropEnabled && (this.id == 0x18EAFF00 || this.id == 0x18ECFF00))
+  {
+    // Drop by not forwarding; CANoe output filter / IL interaction depends on cfg
+    output(this); // replace with conditional output in production cfg
+    return;
+  }
+
+  if (gBusOffPending)
+  {
+    // Production: trigger bus-off via network node / VN hardware API
+    write("SIL: bus-off requested");
+    gBusOffPending = 0;
+  }
+
+  // J1939 TP.CM control-frame drop
+  if (gTpDropRemaining > 0 && ((this.id >> 16) & 0xFF) == 0xEC)
+  {
+    gTpDropRemaining--;
+    write("SIL: dropped TP.CM, remaining=%d", gTpDropRemaining);
+    return;
+  }
+
+  output(this);
+}

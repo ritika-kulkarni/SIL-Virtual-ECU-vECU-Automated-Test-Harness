@@ -1,0 +1,10 @@
+name: bus_off
+description: Force bus-off and assert CanIf recovery within the recovery window.
+fault:
+  type: bus_off
+  error_frames_before_bus_off: 32
+  recovery_window_ms: 1000
+expectations:
+  require_bus_off: true
+  require_recovery: true
+  max_recovery_ms: 1000

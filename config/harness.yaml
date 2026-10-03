@@ -1,0 +1,45 @@
+# SIL / vECU harness configuration
+project_name: sil-vecu-harness
+backend: python  # python | canoe (falls back to python if CANoe unavailable)
+
+bus:
+  channel: 0
+  bitrate: 500000
+  j1939_source_address: 0x80
+  j1939_dest_address: 0xF9
+
+thresholds:
+  min_pass_rate: 1.0
+  min_line_coverage: 0.70
+  min_branch_coverage: 0.60
+  scenario_timeout_sec: 30
+
+retry:
+  max_attempts: 3
+  initial_delay_sec: 0.5
+  max_delay_sec: 8.0
+
+artifactory:
+  mode: mock  # mock | http
+  base_url: https://artifactory.example.com/artifactory
+  repository: sil-reports
+  local_root: artifacts/artifactory
+  username_env: ARTIFACTORY_USER
+  password_env: ARTIFACTORY_PASSWORD
+
+vecu:
+  build_dir: vecu/build
+  binary: vecu/build/vecu_sim
+  host: 127.0.0.1
+  port: 19000
+  startup_timeout_sec: 10
+
+reporting:
+  output_dir: artifacts/reports
+  html_report: artifacts/reports/sil_report.html
+  coverage_dir: artifacts/coverage
+
+scenarios:
+  - frame_drop
+  - bus_off
+  - j1939_tp_retransmit

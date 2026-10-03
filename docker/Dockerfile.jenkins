@@ -1,0 +1,9 @@
+FROM jenkins/jenkins:lts-jdk17
+
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends docker.io \
+    && rm -rf /var/lib/apt/lists/*
+USER jenkins
+
+# Pipeline jobs use the CI image via docker agent label / docker.image()
+COPY --chown=jenkins:jenkins Jenkinsfile /usr/share/jenkins/ref/Jenkinsfile.example
