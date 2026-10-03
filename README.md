@@ -8,20 +8,33 @@ Stack: **Docker · Jenkins · Python · CMake/GTest/gcov · optional Vector CANo
 
 ---
 
+## Architecture at a glance
+
+```mermaid
+flowchart LR
+  PR[PullRequest] --> Jenkins
+  Jenkins --> Docker[DockerAgent]
+  Docker --> Orch[Orchestrator]
+  Orch --> Bus[BusBackend]
+  Orch --> Fault[FaultInjector]
+  Orch --> Vecu[Stub_vECU]
+  Orch --> Report[HTML_and_coverage]
+  Report --> Art[Artifactory]
+  Bus -. optional .-> CANoe[CANoe_COM]
+```
+
+Deeper diagrams (sequence, BSW layers, publish path): **[docs/architecture.md](docs/architecture.md)**  
+Frame / TCP / artifact flow: **[docs/data-flow.md](docs/data-flow.md)**
+
+---
+
 ## What it does on a PR
 
-1. Build the stub vECU with coverage flags and run GTest
-2. Run three SIL scenarios: frame drop, bus-off, J1939 TP retransmit
-3. Write an HTML report and coverage summary
-4. Publish artifacts (mock FS locally, real Artifactory in CI)
+1. Build the stub vECU with coverage flags and run GTest  
+2. Run three SIL scenarios: frame drop, bus-off, J1939 TP retransmit  
+3. Write an HTML report and coverage summary  
+4. Publish artifacts (mock FS locally, real Artifactory in CI)  
 5. Fail the build if pass rate or coverage dips below `config/harness.yaml`
-
-```
-PR → Jenkins (Docker agent)
-        → cmake + gtest
-        → sil-harness run
-        → report + coverage → Artifactory
-```
 
 ---
 
@@ -44,7 +57,7 @@ docker compose -f docker/docker-compose.yml run --rm sil-ci
 
 ### Path tip
 
-If your checkout path has spaces or colons (common on Desktop folders), CMake/make can choke. Symlink around it:
+If your checkout path has spaces or colons, CMake/make can choke. Symlink around it:
 
 ```bash
 ln -sfn "$PWD" /tmp/sil-vecu-harness
@@ -57,17 +70,10 @@ bash scripts/run_local.sh
 ## CLI
 
 ```bash
-# run all scenarios (builds vECU unless --skip-build)
 sil-harness run --config config/harness.yaml --scenarios all
-
-# just print where the last HTML report is
 sil-harness report --config config/harness.yaml
-
-# push report + coverage (mock Artifactory by default)
 sil-harness publish --config config/harness.yaml --branch feature/xyz
 ```
-
-Useful flags on `run`:
 
 | Flag | Meaning |
 |------|---------|
@@ -81,28 +87,28 @@ Useful flags on `run`:
 ## Repo layout
 
 ```
-config/           harness + scenario YAML
-src/sil_harness/  Python package (bus, faults, orchestrator, reporting)
-vecu/             stub C BSW + J1939 app + GTest
-canoe/            sample CAPL for Windows CANoe agents
-docker/           CI image + optional Jenkins controller
-scripts/          local run / coverage helpers
-tests/            Python unit + integration
-docs/             deeper notes (architecture, Jenkins, scenarios)
+config/           harness + scenario YAML          → config/README.md
+src/sil_harness/  Python package                   → src/sil_harness/README.md
+vecu/             stub C BSW + J1939 + GTest       → vecu/README.md
+canoe/            sample CAPL                      → canoe/README.md
+docker/           CI image + Jenkins               → docker/README.md
+scripts/          local run / coverage             → scripts/README.md
+tests/            Python unit + integration        → tests/README.md
+docs/             architecture, CI, scenarios, …
 ```
 
 ---
 
 ## Configuration
 
-Main knobs live in [`config/harness.yaml`](config/harness.yaml):
+Main knobs: [`config/harness.yaml`](config/harness.yaml)
 
 - `backend: python` (default) or `canoe`
 - pass-rate / line / branch coverage gates
 - Artifactory `mode: mock | http`
-- which scenarios to run
+- scenario list
 
-Scenario definitions are under `config/scenarios/`. See [docs/scenarios.md](docs/scenarios.md).
+Scenario YAML lives under `config/scenarios/`. See [docs/scenarios.md](docs/scenarios.md).
 
 ---
 
@@ -113,7 +119,7 @@ Linux CI always uses the Python bus. On a Windows/WSL agent with Vector CANoe + 
 1. Set `backend: canoe` in `config/harness.yaml`
 2. Point your CANoe cfg at [`canoe/FaultInjection.can`](canoe/FaultInjection.can) if you want CAPL-side drops
 
-If COM attach fails, the harness logs a warning and falls back to Python so the job still runs.
+If COM attach fails, the harness logs a warning and falls back to Python. More: [docs/canoe.md](docs/canoe.md).
 
 ---
 
@@ -121,9 +127,9 @@ If COM attach fails, the harness logs a warning and falls back to Python so the 
 
 Point a Pipeline job at the root [`Jenkinsfile`](Jenkinsfile). The agent builds from `docker/Dockerfile.ci`.
 
-For real Artifactory uploads, set `artifactory.mode: http` and add Jenkins credentials ID `artifactory-sil` (`ARTIFACTORY_USER` / `ARTIFACTORY_PASSWORD`).
+For real Artifactory uploads, set `artifactory.mode: http` and add Jenkins credentials ID `artifactory-sil`.
 
-More detail: [docs/jenkins.md](docs/jenkins.md).
+Details: [docs/jenkins.md](docs/jenkins.md).
 
 ---
 
@@ -131,23 +137,30 @@ More detail: [docs/jenkins.md](docs/jenkins.md).
 
 ```bash
 pytest tests/unit -q
-pytest tests/integration -q          # needs cmake + a built/ runnable toolchain
+pytest tests/integration -q
 
 cmake -S vecu -B vecu/build -G Ninja -DCOVERAGE=ON -DBUILD_TESTS=ON
 cmake --build vecu/build -j
 ./vecu/build/vecu_tests
 ```
 
+See [docs/testing.md](docs/testing.md).
+
 ---
 
-## Docs
+## Documentation
 
 | Doc | Contents |
 |-----|----------|
-| [docs/architecture.md](docs/architecture.md) | How the pieces fit together |
-| [docs/scenarios.md](docs/scenarios.md) | Fault injection scenarios |
-| [docs/jenkins.md](docs/jenkins.md) | CI wiring and credentials |
+| [docs/architecture.md](docs/architecture.md) | System / sequence / BSW diagrams |
+| [docs/data-flow.md](docs/data-flow.md) | Frames, TCP commands, artifacts |
+| [docs/scenarios.md](docs/scenarios.md) | Fault injection reference |
+| [docs/jenkins.md](docs/jenkins.md) | CI stages and credentials |
+| [docs/testing.md](docs/testing.md) | Test pyramid and coverage |
+| [docs/canoe.md](docs/canoe.md) | Optional CANoe path |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Local workflow / PR checklist |
+
+Index: [docs/README.md](docs/README.md)
 
 ---
 
